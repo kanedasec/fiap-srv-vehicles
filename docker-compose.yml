@@ -1,0 +1,23 @@
+services:
+  vehicles-db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: vehicles_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - vehicles_data:/var/lib/postgresql/data
+
+  fiap-srv-vehicles:
+    build: .
+    depends_on:
+      - vehicles-db
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@vehicles-db:5432/vehicles_db
+    ports:
+      - "8001:8000"
+
+volumes:
+  vehicles_data:
