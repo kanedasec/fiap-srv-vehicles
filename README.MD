@@ -1,123 +1,172 @@
-# 🚗 FIAP Service - Vehicles
+# FIAP SRV Vehicles
 
-Microserviço de **cadastro e gestão de veículos** desenvolvido em **Python + FastAPI**, utilizando **Arquitetura Hexagonal (Ports & Adapters)** e **PostgreSQL** para persistência.
+Serviço de gerenciamento de veículos construído em **FastAPI** com arquitetura **Hexagonal (Ports & Adapters)**, utilizando **PostgreSQL** como banco de dados e **Docker Compose** para orquestração dos serviços.
 
 ---
 
-## 🏛️ Arquitetura
+## 🏗️ Arquitetura
 
-A aplicação segue princípios de **Arquitetura Hexagonal**, também conhecida como **Ports & Adapters**:
+A aplicação segue os princípios de **Domain-Driven Design (DDD)** e **Hexagonal Architecture**:
 
 - **Domain (`src/domain`)**  
-  Entidades e regras de negócio puras (`Vehicle`, `VehicleStatus`).
-
-- **Ports (`src/ports`)**  
-  Contratos/Protocolos de comunicação (ex.: `VehicleRepository`).
+  Contém as entidades centrais (`Vehicle`, `VehicleStatus`) e regras de negócio.
 
 - **Application (`src/application`)**  
-  Casos de uso que orquestram a lógica de negócio (`create_vehicle`).
+  Define os casos de uso (`create_vehicle`, `reserve_vehicle`, `sell_vehicle`, `unreserve_vehicle`).
+
+- **Ports (`src/ports`)**  
+  Protocolos/interfaces que definem contratos de repositórios.
 
 - **Adapters (`src/adapters`)**  
-  - **db/** → Implementa persistência usando **SQLAlchemy** e **PostgreSQL**.  
-  - **http/** → Exposição da API via **FastAPI** (endpoints REST).
+  - **DB (`src/adapters/db`)**: implementação usando SQLAlchemy.  
+  - **HTTP (`src/adapters/http`)**: exposição dos endpoints via FastAPI.
 
-- **main.py**  
-  Ponto de entrada da aplicação, inicializa o FastAPI e conecta os routers.
-
-📐 **Vantagens dessa abordagem**:
-- Independência do banco de dados.
-- Facilidade para adicionar novas interfaces (ex.: CLI, gRPC).
-- Separação clara entre **regra de negócio** e **infraestrutura**.
+- **Infraestrutura**  
+  Banco de dados PostgreSQL rodando em container Docker.
 
 ---
 
-## 🛢️ Banco de Dados
+## 🗄️ Banco de Dados
 
-O serviço utiliza **PostgreSQL 15** pelas seguintes razões:
+- Banco escolhido: **PostgreSQL**
+- Motivos:
+  - Robustez e confiabilidade
+  - Bom suporte a tipos enumerados (enums), usado para `VehicleStatus`
+  - Integração nativa com SQLAlchemy
+- Migrações gerenciadas com **Alembic**
 
-- **Confiabilidade e maturidade** em ambientes críticos.  
-- **Suporte robusto a transações**.  
-- Integração sólida com **SQLAlchemy** e **Alembic** (migrações).  
+---
 
-### 🔄 Migrações
-As migrações são gerenciadas com **Alembic**:
+## 🚀 Como rodar o projeto
+
+### 1. Subir containers
 
 ```bash
-# Criar nova migration
-alembic revision --autogenerate -m "descrição"
+sudo docker compose up --build -d
+```
 
-# Aplicar migrations
+### 2. Aplicar migrações
+
+```bash
 alembic upgrade head
 ```
 
----
+### 3. Acessar API
 
-## 🐳 Executando o Projeto
-
-1. **Subir containers com Docker Compose**:
-   ```bash
-   docker compose up -d --build
-   ```
-
-2. **Acessar a API**:  
-   - API: [http://localhost:8000](http://localhost:8000)  
-   - Documentação Swagger: [http://localhost:8000/docs](http://localhost:8000/docs)  
-   - Banco PostgreSQL: `localhost:5432`  
-
-3. **Encerrar serviços**:
-   ```bash
-   docker compose down
-   ```
+A aplicação roda em:  
+👉 [http://localhost:8001](http://localhost:8001)
 
 ---
 
-## 📡 Endpoints da API
+## 📚 Endpoints
 
-### 🔍 Healthcheck
-- `GET /healthz` → Verifica se a API está rodando.  
-- `GET /readyz` → Testa conectividade com o banco.
+### Health
 
-### 🚘 Vehicles
+- `GET /healthz` → Verifica se a API está viva  
+- `GET /readyz` → Verifica conectividade com o banco
 
-#### Criar veículo
-`POST /vehicles`
+---
 
-**Request Body**:
-```json
-{
-  "brand": "Toyota",
-  "model": "Corolla",
-  "year": 2020,
-  "color": "Prata",
-  "price": 85000.00
-}
-```
+### Vehicles
 
-**Response**:
-```json
-{
-  "id": "uuid-gerado",
-  "brand": "Toyota",
-  "model": "Corolla",
-  "year": 2020,
-  "color": "Prata",
-  "price": 85000.0,
-  "status": "available"
-}
-```
+- **Criar veículo**
 
-#### Listar veículos
-`GET /vehicles?status={status}`
-
-Parâmetro `status` pode ser:
-- `available`
-- `reserved`
-- `sold`
-
-**Exemplo**:
 ```http
-GET http://localhost:8000/vehicles?status=available
+POST /vehicles
+Content-Type: application/json
+
+{
+  "brand": "Ford",
+  "model": "Fiesta",
+  "year": 2018,
+  "color": "blue",
+  "price": 45000.0
+}
+```
+
+- **Listar veículos por status**
+
+```http
+GET /vehicles?status=available
+GET /vehicles?status=reserved
+GET /vehicles?status=sold
+```
+
+- **Reservar veículo**
+
+```http
+POST /vehicles/{id}/reserve
+Content-Type: application/json
+
+{
+  "reserved_by": "kaneda"
+}
+```
+
+- **Cancelar reserva**
+
+```http
+POST /vehicles/{id}/unreserve
+Content-Type: application/json
+
+{
+  "reserved_by": "kaneda"
+}
+```
+
+- **Marcar como vendido**
+
+```http
+POST /vehicles/{id}/sell
 ```
 
 ---
 
+## 🧪 Testes rápidos (curl)
+
+```bash
+# Saúde
+curl -s http://localhost:8001/healthz
+curl -s http://localhost:8001/readyz
+
+# Listar disponíveis
+curl -s "http://localhost:8001/vehicles?status=available"
+
+# Criar
+curl -s -X POST http://localhost:8001/vehicles   -H "Content-Type: application/json"   -d '{"brand":"Ford","model":"Fiesta","year":2018,"color":"blue","price":45000.0}'
+
+# Reservar
+curl -s -X POST http://localhost:8001/vehicles/{id}/reserve   -H "Content-Type: application/json"   -d '{"reserved_by":"kaneda"}'
+
+# Cancelar reserva
+curl -s -X POST http://localhost:8001/vehicles/{id}/unreserve
+
+# Vender
+curl -s -X POST http://localhost:8001/vehicles/{id}/sell
+```
+
+---
+
+## 📂 Estrutura de Pastas
+
+```
+src/
+ ├── adapters/
+ │   ├── db/         # ORM, repositorios, base SQLAlchemy
+ │   └── http/       # Endpoints FastAPI
+ │   └── messaging/  # Serviços de mensageria
+ ├── application/    # Casos de uso (usecases)
+ │   └── usecases/   # Casos de uso (usecases)
+ ├── domain/         # Entidades e enums centrais
+ ├── ports/          # Interfaces de repositório
+ └── main.py         # Ponto de entrada da API
+```
+
+---
+
+## 🔑 Decisões de Design
+
+1. **Arquitetura hexagonal** para garantir isolamento entre camadas e facilidade de testes.  
+2. **PostgreSQL** escolhido pela robustez, compatibilidade com enums e uso em produção real.  
+3. **FastAPI** para endpoints REST, validação automática com Pydantic e documentação embutida (`/docs`).  
+4. **Docker Compose** para subir todo o stack com um único comando.  
