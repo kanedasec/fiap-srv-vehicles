@@ -8,15 +8,18 @@ curl -s http://localhost:8000/readyz; echo
 #  -d '{"brand":"Honda","model":"Civic","year":2019,"color":"Preto","price":78000}'; echo
 
 # listar disponíveis
-curl -s "http://localhost:8000/vehicles?status=available"; echo
+curl -s "http://localhost:8000/vehicles?status=available"| jq ; echo
 
-# reservar (troque {ID})
+# reservar
 curl -s -X POST "http://localhost:8000/vehicles/00b66ab5-60c6-42ec-85cc-6ea6ce094923/reserve" \
   -H "Content-Type: application/json" \
-  -d '{"reserved_by":"kaneda"}'; echo
+  -d '{"reserved_by":"kaneda"}'| jq ; echo
 
-# vender (troque {ID})
-curl -s -X POST "http://localhost:8000/vehicles/2d637e93-8d4b-40e4-8c53-846cc6cb3941/sell"; echo
+# desfazer reserva (unreserve)
+curl -s -X POST "http://localhost:8000/vehicles/00b66ab5-60c6-42ec-85cc-6ea6ce094923/unreserve" | jq
+
+# vender
+curl -s -X POST "http://localhost:8000/vehicles/2d637e93-8d4b-40e4-8c53-846cc6cb3941/sell" | jq ; echo
 
 # conferir vendidos
-curl -s "http://localhost:8000/vehicles?status=sold"; echo
+curl -s "http://localhost:8000/vehicles?status=sold"| jq ; echo

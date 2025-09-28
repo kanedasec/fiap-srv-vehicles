@@ -74,6 +74,17 @@ class SqlAlchemyVehicleRepository:
         self.db.refresh(row)
         return _row_to_dict(row)
 
+    def unreserve(self, vehicle_id: str) -> Optional[VehicleORM]:
+        row = self.get_by_id(vehicle_id)
+        if not row or row.status != VehicleStatus.RESERVED:
+            return None
+        row.status = VehicleStatus.AVAILABLE
+        row.reserved_by = None
+        row.reserved_at = None
+        self.db.commit()
+        self.db.refresh(row)
+        return row
+
     def mark_sold(self, vehicle_id: str) -> Optional[dict]:
         row = self.get_by_id(vehicle_id)
         if not row:

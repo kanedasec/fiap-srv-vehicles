@@ -59,6 +59,19 @@ def reserve_vehicle(
         raise HTTPException(status_code=404, detail="Veículo não encontrado ou não disponível para reserva")
     return jsonable_encoder(updated)
 
+@router.post("/vehicles/{vehicle_id}/unreserve")
+def unreserve_vehicle(
+    vehicle_id: str,
+    repo: SqlAlchemyVehicleRepository = Depends(get_repo),
+):
+    updated = repo.unreserve(vehicle_id)
+    if not updated:
+        raise HTTPException(
+            status_code=404,
+            detail="Veículo não encontrado ou não está reservado",
+        )
+    return jsonable_encoder(updated)
+
 @router.post("/vehicles/{vehicle_id}/sell")
 def sell_vehicle(
     vehicle_id: str,
