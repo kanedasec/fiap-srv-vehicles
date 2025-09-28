@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Depends
+# src/adapters/http/api.py
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
-from src.adapters.db.base import SessionLocal, engine
-from src.adapters.db.repository import SqlAlchemyVehicleRepository
-from src.application.usecases.create_vehicle import create_vehicle
-from src.domain.models import VehicleStatus
 from pydantic import BaseModel
 from fastapi.encoders import jsonable_encoder
+
+from src.adapters.db.base import SessionLocal, engine
+from src.adapters.db.repository import SqlAlchemyVehicleRepository
+from src.adapters.db.models import VehicleStatus
+from src.application.usecases.create_vehicle import create_vehicle
 
 router = APIRouter()
 
@@ -23,6 +25,9 @@ class VehicleIn(BaseModel):
     color: str
     price: float
 
+class ReserveIn(BaseModel):
+    reserved_by: str
+
 class HealthResponse(BaseModel):
     status: str
 
@@ -36,9 +41,33 @@ def list_vehicles(
     status: str = "available",
     repo: SqlAlchemyVehicleRepository = Depends(get_repo),
 ):
-    status_enum = VehicleStatus(status.lower())
+    try:
+        status_enum = VehicleStatus(status.lower())
+    except ValueError:
+        raise HTTPException(status_code=422, detail="status deve ser: available | reserved | sold")
     rows = repo.list_by_status_ordered(status_enum)
     return jsonable_encoder(rows)
+
+@router.post("/vehicles/{vehicle_id}/reserve")
+def reserve_vehicle(
+    vehicle_id: str,
+    payload: ReserveIn,
+    repo: SqlAlchemyVehicleRepository = Depends(get_repo),
+):
+    updated = repo.mark_reserved(vehicle_id, payload.reserved_by)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Veículo não encontrado ou não disponível para reserva")
+    return jsonable_encoder(updated)
+
+@router.post("/vehicles/{vehicle_id}/sell")
+def sell_vehicle(
+    vehicle_id: str,
+    repo: SqlAlchemyVehicleRepository = Depends(get_repo),
+):
+    updated = repo.mark_sold(vehicle_id)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Veículo não encontrado")
+    return jsonable_encoder(updated)
 
 @router.get("/healthz", response_model=HealthResponse, tags=["health"])
 def healthz():
